@@ -92,7 +92,12 @@ object Curl {
         polled.finalize()
     }
   }
+  def close(host: String) = {
 
+  }
+
+  //TODO: make settable
+  //Sometimes number of connections from the same host is limited by server
   private final val connectionsPerHost = 20
   //private final val maxConnectionQueueSize = 100
   //private final val minConnectionQueueSize = 3
@@ -107,8 +112,12 @@ object Curl {
   private val waitsCount = new AtomicInteger(0)
   private val notifiedCount = new AtomicInteger(0)
   private var connectionToHostQueues = Map[String, (java.util.concurrent.ConcurrentLinkedQueue[CurlGlue], Int)]()
-  //Очередь соединений с отметкой о времени последнего использования
+
+  //TODO:
+  //Очередь соединений с отметкой о времени последнего использования (после return to queue, у активных зануляем)
   //Неиспользуемые соединения удаляем
+
+  //Сейчас в очереди соединений во втором аргументе tuple хранится количество активных соединений
   //val queue: java.util.concurrent.ConcurrentLinkedQueue[(CurlGlue, Long)] = new java.util.concurrent.ConcurrentLinkedQueue[(CurlGlue, Long)]()
   private def nextConnection(url: String, uid: String): CurlGlue = {
     val host = extractHost(url)
@@ -127,7 +136,7 @@ object Curl {
 
     //Logger.debug("curl queue before synchronized " + uid)
     while (notifiedCount.get() > 0) {
-      Thread.sleep(30)
+      Thread.sleep(1)
     }
     queue.synchronized {
       //Logger.debug("curl queue " + uid + " : " + queue.hashCode())
@@ -229,7 +238,7 @@ object Curl {
               timeout: Option[Int] = None): CurlResult = {
 
     val uid = givenUsingPlainJava_whenGeneratingRandomStringBounded_thenCorrect()
-    val cg = _cg.getOrElse(nextConnection(url, uid))
+    val cg = _cg.flatMap(cg => if (cg.isFinalized) None else Some(cg)).getOrElse(nextConnection(url, uid))
     withCookie.foreach(withCookie => {
       cg.putCookies(withCookie.domain.orNull, withCookie.name, withCookie.value)
     })

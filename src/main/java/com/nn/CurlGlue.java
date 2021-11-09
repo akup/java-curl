@@ -98,7 +98,12 @@ public class CurlGlue implements CurlWrite {
     //System.out.println("INIT CURL OK: CURLOPT_WRITEFUNCTION "+res);
   }
 
+  private boolean _finalized = false;
+  public boolean isFinalized() {
+    return _finalized;
+  }
   public void finalize() {
+    _finalized = true;
     jni_cleanup(javacurl_handle);
   }
 
